@@ -24,7 +24,7 @@ class Clicker
 using data_t = std::vector< unsigned long long >;
 using value_t = data_t::value_type;
 
-value_t sum_thread(const value_t* data, size_t starе, size_t block)
+value_t sum_thread(const value_t* data, size_t start, size_t block)
 {
   value_t sum = 0;
   for (size_t i = 0; i < block; ++i)
@@ -49,7 +49,29 @@ int main(int argc, char* argv[])
     data_t values(size, 1);
     init = cl.millisec();
 
-    
+    std::vector<std::future<value_t>> futures;
+    futures.reserve(threads);
+
+    const size_t blockSize = size / threads;
+    const size_t remains = size % threads;
+    const value_t* data = values.data();
+
+    for (size_t i = 0; i + 1 < threads; ++i)
+    {
+      size_t start = i * blockSize;
+      futures.push_back(std::async(std::launch::async, sum_thread, data, start, blockSize));
+    }
+    size_t lastStart = (threads - 1) * blockSize;
+    size_t lastSize = blockSize + remains;
+    futures.push_back(std::async(std::launch::async, sum_thread, data, lastStart, lastSize));
+
+    for (size_t i = 0; i < threads; ++i)
+    {
+      sum += futures[i].get();
+    }
+
+    total = cl.millisec();
   }
+  std::cout << total - init << "\n";
   return 0;
 }
